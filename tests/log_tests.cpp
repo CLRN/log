@@ -1,6 +1,6 @@
 #include "log/log.h"
 
-#include <iostream>
+#include <vector>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -27,6 +27,65 @@ public:
 };
 
 SET_LOGGING_MODULE("tests");
+
+
+TEST(Logging, TextFormatter)
+{
+    {
+        const auto text = TXT("text");
+        EXPECT_EQ(text, "text");
+    }
+    {
+        const auto text = TXT("text: %s", std::vector<int>{1, 2, 3});
+        EXPECT_EQ(text, "text: 1,2,3");
+    }
+    {
+        const auto text = TXT("text: %s", std::map<std::string, int>{ {"1", 1}, {"2", 2} });
+        EXPECT_EQ(text, "text: 1:1,2:2");
+    }
+}
+
+TEST(Logging, Levels)
+{
+    auto* log = new MockedLog();
+
+    EXPECT_CALL(*log, IsEnabled(CURRENT_MODULE_ID, ILog::Level::Trace))
+            .Times(Exactly(1))
+            .WillOnce(Return(true));
+    EXPECT_CALL(*log, IsEnabled(CURRENT_MODULE_ID, ILog::Level::Debug))
+            .Times(Exactly(1))
+            .WillOnce(Return(true));
+    EXPECT_CALL(*log, IsEnabled(CURRENT_MODULE_ID, ILog::Level::Warning))
+            .Times(Exactly(1))
+            .WillOnce(Return(true));
+    EXPECT_CALL(*log, IsEnabled(CURRENT_MODULE_ID, ILog::Level::Error))
+            .Times(Exactly(1))
+            .WillOnce(Return(true));
+    EXPECT_CALL(*log, IsEnabled(CURRENT_MODULE_ID, ILog::Level::Info))
+            .Times(Exactly(1))
+            .WillOnce(Return(true));
+
+    EXPECT_CALL(*log, Write(CURRENT_MODULE_ID, ILog::Level::Trace, "trace", _, _, _))
+            .Times(Exactly(1));
+    EXPECT_CALL(*log, Write(CURRENT_MODULE_ID, ILog::Level::Debug, "debug", _, _, _))
+            .Times(Exactly(1));
+    EXPECT_CALL(*log, Write(CURRENT_MODULE_ID, ILog::Level::Warning, "warning", _, _, _))
+            .Times(Exactly(1));
+    EXPECT_CALL(*log, Write(CURRENT_MODULE_ID, ILog::Level::Error, "error", _, _, _))
+            .Times(Exactly(1));
+    EXPECT_CALL(*log, Write(CURRENT_MODULE_ID, ILog::Level::Info, "info", _, _, _))
+            .Times(Exactly(1));
+
+    logging::CurrentLog::Set(log);
+
+    LOG_TRACE("trace");
+    LOG_DEBUG("debug");
+    LOG_WARNING("warning");
+    LOG_ERROR("error");
+    LOG_INFO("info");
+
+    logging::CurrentLog::Set(nullptr);
+}
 
 TEST(Logging, WrongFormat)
 {
@@ -58,7 +117,7 @@ TEST(Logging, CorrectFormat)
 
     logging::CurrentLog::Set(log);
 
-    LOG_INFO("%s") % "text";
+    LOG_INFO("%s", "text");
     logging::CurrentLog::Set(nullptr);
 }
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "conversion/cast.h"
+
 #include "log.h"
 
 #include <set>
@@ -7,32 +9,51 @@
 #include <map>
 
 #include <boost/format.hpp>
+#include <boost/preprocessor/control/iif.hpp>
+#include <boost/preprocessor/comparison/greater.hpp>
+#include <boost/preprocessor/variadic/size.hpp>
+
+// Helpers
+#define FORMAT_FOR_ZERO_ARGS(text) logging::MessageFormatter(text).GetText()
+#define FORMAT_FOR_NONZERO_ARGS(...) logging::MessageFormatter(__VA_ARGS__).GetText()
+#define FORMAT_ARGS(...) BOOST_PP_IIF( \
+    BOOST_PP_GREATER(BOOST_PP_VARIADIC_SIZE(__VA_ARGS__), 1), \
+        FORMAT_FOR_NONZERO_ARGS, FORMAT_FOR_ZERO_ARGS)(__VA_ARGS__) \
+
+//! Text formatting
+#define TXT(...)                                                                                                \
+    FORMAT_ARGS(__VA_ARGS__)
 
 //! Logging macro
-#define LOG_MACRO(logger, text, level, module)                                                                  \
-    logging::MessageFormatter(*logger, module, level, text, __FILE__, __LINE__, __FUNCTION__) 
+#define LOG_MACRO(logger, level, module, ...)                                                                   \
+    logger->Write(module, level, TXT(__VA_ARGS__), __FILE__, __LINE__, __FUNCTION__);
 
-#define LINFO(logger, module, message)		if (logger && logger->IsEnabled(module, ILog::Level::Info))		    \
-    LOG_MACRO(logger, message, ILog::Level::Info, module)
-#define LERROR(logger, module, message)		if (logger && logger->IsEnabled(module, ILog::Level::Error))		\
-    LOG_MACRO(logger, message, ILog::Level::Error, module)
-#define LWARNING(logger, module, message)	if (logger && logger->IsEnabled(module, ILog::Level::Warning))	    \
-    LOG_MACRO(logger, message, ILog::Level::Warning, module)
-#define LTRACE(logger, module, message)		if (logger && logger->IsEnabled(module, ILog::Level::Trace))		\
-    LOG_MACRO(logger, message, ILog::Level::Trace, module)
-#define LDEBUG(logger, module, message)		if (logger && logger->IsEnabled(module, ILog::Level::Debug))		\
-    LOG_MACRO(logger, message, ILog::Level::Debug, module)
+#define LINFO(logger, module, ...)                                                                              \
+    if (logger && logger->IsEnabled(module, ILog::Level::Info))		                                            \
+        LOG_MACRO(logger, ILog::Level::Info, module, __VA_ARGS__)
+#define LERROR(logger, module, ...)		                                                                        \
+    if (logger && logger->IsEnabled(module, ILog::Level::Error))		                                        \
+        LOG_MACRO(logger, ILog::Level::Error, module, __VA_ARGS__)
+#define LWARNING(logger, module, ...)	                                                                        \
+    if (logger && logger->IsEnabled(module, ILog::Level::Warning))	                                            \
+        LOG_MACRO(logger, ILog::Level::Warning, module, __VA_ARGS__)
+#define LTRACE(logger, module, ...)	                                                                            \
+    if (logger && logger->IsEnabled(module, ILog::Level::Trace))		                                        \
+        LOG_MACRO(logger, ILog::Level::Trace, module, __VA_ARGS__)
+#define LDEBUG(logger, module, ...)                                                                             \
+    if (logger && logger->IsEnabled(module, ILog::Level::Debug))		                                        \
+        LOG_MACRO(logger, ILog::Level::Debug, module, __VA_ARGS__)
 
-#define LOG_INFO(message) \
-    LINFO(logging::CurrentLog::Get(), CURRENT_MODULE_ID, message)
-#define LOG_ERROR(message) \
-	LERROR(logging::CurrentLog::Get(), CURRENT_MODULE_ID, message)
-#define LOG_WARNING(message) \
-	LWARNING(logging::CurrentLog::Get(), CURRENT_MODULE_ID, message)
-#define LOG_TRACE(message) \
-	LTRACE(logging::CurrentLog::Get(), CURRENT_MODULE_ID, message)
-#define LOG_DEBUG(message) \
-	LDEBUG(logging::CurrentLog::Get(), CURRENT_MODULE_ID, message)
+#define LOG_INFO(...) \
+    LINFO(logging::CurrentLog::Get(), CURRENT_MODULE_ID, __VA_ARGS__)
+#define LOG_ERROR(...) \
+	LERROR(logging::CurrentLog::Get(), CURRENT_MODULE_ID, __VA_ARGS__)
+#define LOG_WARNING(...) \
+	LWARNING(logging::CurrentLog::Get(), CURRENT_MODULE_ID, __VA_ARGS__)
+#define LOG_TRACE(...) \
+	LTRACE(logging::CurrentLog::Get(), CURRENT_MODULE_ID, __VA_ARGS__)
+#define LOG_DEBUG(...) \
+	LDEBUG(logging::CurrentLog::Get(), CURRENT_MODULE_ID, __VA_ARGS__)
 
 #define SET_LOGGING_MODULE(name) static const char CURRENT_MODULE_ID[] = name;
 
@@ -41,51 +62,63 @@ namespace logging
     class MessageFormatter
     {
     public:
-        MessageFormatter(ILog& log, const char* module, ILog::Level::Value level, const std::string& text, const char* file, unsigned line, const char* function) 
-            : m_Log(log) 
-            , m_Module(module)
-            , m_Level(level)
-            , m_Text(text)
+
+        template <typename ... T>
+        MessageFormatter(const std::string& text, const T... args)
+            : m_Text(text)
             , m_Format(text)
-            , m_File(file)
-            , m_Line(line)
-            , m_Function(function)
-        {}
-        ~MessageFormatter()
         {
-            m_Log.Write(m_Module, m_Level, m_Format.fed_args() ? m_Format.str() : m_Text, m_File, m_Line, m_Function);
+            Print(args...);
         }
-        template<typename T>
-        MessageFormatter& operator % (const T& value)
+
+        void Print()
         {
-            m_Format % value;
-            return *this;
         }
-        MessageFormatter& operator % (const std::wstring& value)
+
+        template <typename T, typename ... Args>
+        void Print(const T& arg, const Args... args)
+        {
+            m_Format % arg;
+            Print(args...);
+        }
+
+        template <typename ... Args>
+        void Print(const std::wstring& value, const Args... args)
         {
             m_Format % conv::cast<std::string>(value);
-            return *this;
+            Print(args...);
         }
-        template<typename T>
-        MessageFormatter& operator % (const std::vector<T>& value)
+
+        template <typename T, typename ... Args>
+        void Print(const std::vector<T>& arg, const Args... args)
         {
-            WriteSequence(value);
-            return *this;
+            WriteSequence(arg);
+            Print(args...);
         }
-        template<typename T>
-        MessageFormatter& operator % (const std::deque<T>& value)
+
+        template <typename T, typename ... Args>
+        void Print(const std::set<T>& arg, const Args... args)
         {
-            WriteSequence(value);
-            return *this;
+            WriteSequence(arg);
+            Print(args...);
         }
-        template<typename T>
-        MessageFormatter& operator % (const std::set<T>& value)
+
+        template <typename T, typename ... Args>
+        void Print(const std::list<T>& arg, const Args... args)
         {
-            WriteSequence(value);
-            return *this;
+            WriteSequence(arg);
+            Print(args...);
         }
-        template<typename K, typename V, typename A>
-        MessageFormatter& operator % (const std::map<K, V, A>& arg)
+
+        template <typename T, typename ... Args>
+        void Print(const std::deque<T>& arg, const Args... args)
+        {
+            WriteSequence(arg);
+            Print(args...);
+        }
+
+        template<typename K, typename V, typename A, typename ... Args>
+        void Print(const std::map<K, V, A>& arg, const Args... args)
         {
             std::ostringstream oss;
             auto it = arg.begin();
@@ -98,8 +131,9 @@ namespace logging
             }
 
             m_Format % oss.str();
-            return *this;
+            Print(args...);
         }
+
         template<typename T>
         void WriteSequence(const T& arg)
         {
@@ -115,15 +149,16 @@ namespace logging
 
             m_Format % oss.str();
         }
-    private:
-        ILog& m_Log;
-        const char* m_Module;
-        const ILog::Level::Value m_Level;
-        const char* const m_File;
-        const unsigned m_Line;
-        const char* const m_Function;
+
+        std::string GetText() const
+        {
+            return m_Format.remaining_args() ? m_Text : m_Format.str();
+        }
+
+    protected:
         boost::format m_Format;
         const std::string& m_Text;
     };
+
 }
 
