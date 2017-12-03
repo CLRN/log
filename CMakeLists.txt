@@ -1,38 +1,31 @@
-file(GLOB SOURCES "src/*.cpp" "src/*.h" "log.h")
+set(PROJECT_NAME lib_log)
 
-IF(BIICODE)
-    INIT_BIICODE_BLOCK()
+cmake_minimum_required(VERSION 3.0)
+set(CMAKE_CXX_STANDARD 14)
 
-    #Include biicode Boost setup
-    include(biicode/boost/setup)
-    
-    # Including tools.cmake from biicode/cmake user block
-    include(biicode/cmake/tools)    
-    
-    list(APPEND BII_LIB_SRC ${SOURCES})
+add_subdirectory(conversion)
 
-    ADD_BIICODE_TARGETS()
-    
-    # Calling specific macro to activate c++11 flags
-    ACTIVATE_CPP11(INTERFACE ${BII_BLOCK_TARGET})    
+set(BOOST_COMPONENTS thread)
+find_package(Boost COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
+find_package(Threads REQUIRED)
+find_package(Log4cplus)
 
-    set(Boost_USE_STATIC_LIBS OFF)
-    set(Boost_USE_MULTITHREADED ON)
-
-    bii_setup_boost(COMPONENTS filesystem system thread REQUIRED)
-    find_package(Boost COMPONENTS filesystem system thread REQUIRED)
-
-    target_include_directories(${BII_BLOCK_TARGET} INTERFACE ${Boost_INCLUDE_DIRS})
-    target_link_libraries(${BII_BLOCK_TARGET} INTERFACE ${Boost_LIBRARIES})
-    
-    foreach(target ${BII_BLOCK_TARGETS})
-        set_target_properties(${target} PROPERTIES FOLDER "clrn/common")
-    endforeach()
-    
+if (${Log4cplus_FOUND})
+    file(GLOB SOURCES "src/*.cpp" "src/*.h" "src/log4cplus/*.cpp" "src/log4cplus/*.h" "include/log/log.h")
 else()
-    set(PROJECT_NAME lib_log)
-    add_library(${PROJECT_NAME} STATIC ${SOURCES})
-    set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "clrn/common")
-    add_subdirectory(tests)
+    file(GLOB SOURCES "src/*.cpp" "src/*.h" "include/log/log.h")
 endif()
 
+add_library(${PROJECT_NAME} STATIC ${SOURCES})
+set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "common")
+target_link_libraries(${PROJECT_NAME}
+    lib_conversion
+    ${Boost_LIBRARIES}
+    ${CMAKE_THREAD_LIBS_INIT}
+)
+target_include_directories(${PROJECT_NAME} PUBLIC
+                           $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+
+if (WITH_TESTS)
+    add_subdirectory(tests)
+endif()

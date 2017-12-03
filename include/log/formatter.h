@@ -1,6 +1,6 @@
 #pragma once
 
-#include "conversion/cast.h"
+#include "conversion/cast.hpp"
 
 #include "log.h"
 
@@ -26,23 +26,26 @@
 
 //! Logging macro
 #define LOG_MACRO(logger, level, module, ...)                                                                   \
-    logger->Write(module, level, TXT(__VA_ARGS__), __FILE__, __LINE__, __FUNCTION__);
+    logger->Write(module, level, TXT(__VA_ARGS__), __FILE__, __LINE__, __FUNCTION__)
 
 #define LINFO(logger, module, ...)                                                                              \
-    if (logger && logger->IsEnabled(module, ILog::Level::Info))		                                            \
-        LOG_MACRO(logger, ILog::Level::Info, module, __VA_ARGS__)
+    ((logger && logger->IsEnabled(module, ILog::Level::Info)) ?		                                            \
+        LOG_MACRO(logger, ILog::Level::Info, module, __VA_ARGS__) : void())
 #define LERROR(logger, module, ...)		                                                                        \
-    if (logger && logger->IsEnabled(module, ILog::Level::Error))		                                        \
-        LOG_MACRO(logger, ILog::Level::Error, module, __VA_ARGS__)
+    ((logger && logger->IsEnabled(module, ILog::Level::Error)) ?		                                        \
+        LOG_MACRO(logger, ILog::Level::Error, module, __VA_ARGS__) : void())
 #define LWARNING(logger, module, ...)	                                                                        \
-    if (logger && logger->IsEnabled(module, ILog::Level::Warning))	                                            \
-        LOG_MACRO(logger, ILog::Level::Warning, module, __VA_ARGS__)
+    ((logger && logger->IsEnabled(module, ILog::Level::Warning)) ?	                                            \
+        LOG_MACRO(logger, ILog::Level::Warning, module, __VA_ARGS__) : void())
 #define LTRACE(logger, module, ...)	                                                                            \
-    if (logger && logger->IsEnabled(module, ILog::Level::Trace))		                                        \
-        LOG_MACRO(logger, ILog::Level::Trace, module, __VA_ARGS__)
+    ((logger && logger->IsEnabled(module, ILog::Level::Trace)) ?		                                        \
+        LOG_MACRO(logger, ILog::Level::Trace, module, __VA_ARGS__) : void())
 #define LDEBUG(logger, module, ...)                                                                             \
-    if (logger && logger->IsEnabled(module, ILog::Level::Debug))		                                        \
-        LOG_MACRO(logger, ILog::Level::Debug, module, __VA_ARGS__)
+    ((logger && logger->IsEnabled(module, ILog::Level::Debug)) ?		                                        \
+        LOG_MACRO(logger, ILog::Level::Debug, module, __VA_ARGS__) : void())
+#define LLEVELED(logger, module, lvl, ...)                                                                      \
+    ((logger && logger->IsEnabled(module, lvl)) ?		                                                        \
+        LOG_MACRO(logger, lvl, module, __VA_ARGS__) : void())
 
 #define LOG_INFO(...) \
     LINFO(logging::CurrentLog::Get(), CURRENT_MODULE_ID, __VA_ARGS__)
@@ -54,6 +57,8 @@
 	LTRACE(logging::CurrentLog::Get(), CURRENT_MODULE_ID, __VA_ARGS__)
 #define LOG_DEBUG(...) \
 	LDEBUG(logging::CurrentLog::Get(), CURRENT_MODULE_ID, __VA_ARGS__)
+#define LOG_LEVELED(lvl, ...) \
+	LLEVELED(logging::CurrentLog::Get(), CURRENT_MODULE_ID, static_cast<ILog::Level::Value>(lvl), __VA_ARGS__)
 
 #define SET_LOGGING_MODULE(name) static const char CURRENT_MODULE_ID[] = name;
 
@@ -64,7 +69,7 @@ namespace logging
     public:
 
         template <typename ... T>
-        MessageFormatter(const std::string& text, const T... args)
+        MessageFormatter(const std::string& text, const T&... args)
             : m_Text(text)
             , m_Format(text)
         {
@@ -76,49 +81,49 @@ namespace logging
         }
 
         template <typename T, typename ... Args>
-        void Print(const T& arg, const Args... args)
+        void Print(const T& arg, const Args&... args)
         {
             m_Format % arg;
             Print(args...);
         }
 
         template <typename ... Args>
-        void Print(const std::wstring& value, const Args... args)
+        void Print(const std::wstring& value, const Args&... args)
         {
             m_Format % conv::cast<std::string>(value);
             Print(args...);
         }
 
         template <typename T, typename ... Args>
-        void Print(const std::vector<T>& arg, const Args... args)
+        void Print(const std::vector<T>& arg, const Args&... args)
         {
             WriteSequence(arg);
             Print(args...);
         }
 
         template <typename T, typename ... Args>
-        void Print(const std::set<T>& arg, const Args... args)
+        void Print(const std::set<T>& arg, const Args&... args)
         {
             WriteSequence(arg);
             Print(args...);
         }
 
         template <typename T, typename ... Args>
-        void Print(const std::list<T>& arg, const Args... args)
+        void Print(const std::list<T>& arg, const Args&... args)
         {
             WriteSequence(arg);
             Print(args...);
         }
 
         template <typename T, typename ... Args>
-        void Print(const std::deque<T>& arg, const Args... args)
+        void Print(const std::deque<T>& arg, const Args&... args)
         {
             WriteSequence(arg);
             Print(args...);
         }
 
         template<typename K, typename V, typename A, typename ... Args>
-        void Print(const std::map<K, V, A>& arg, const Args... args)
+        void Print(const std::map<K, V, A>& arg, const Args&... args)
         {
             std::ostringstream oss;
             auto it = arg.begin();

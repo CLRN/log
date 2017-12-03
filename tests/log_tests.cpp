@@ -23,7 +23,14 @@ public:
     {
         throw std::logic_error("The method or operation is not implemented.");
     }
-
+    virtual void SetLevel(Level::Value level) override
+    {
+        throw std::logic_error("The method or operation is not implemented.");
+    }
+    virtual void SetLevels(const boost::property_tree::ptree& settings) override
+    {
+        throw std::logic_error("The method or operation is not implemented.");
+    }
 };
 
 SET_LOGGING_MODULE("tests");

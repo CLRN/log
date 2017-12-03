@@ -1,4 +1,7 @@
-set(PROJECT_NAME net_tests)
+set(PROJECT_NAME log_tests)
+
+find_package(GTest REQUIRED)
+find_package(GMock REQUIRED)
 
 file(GLOB SOURCES "*.cpp")
 file(GLOB HEADERS "*.h" "*.rc" "*.def")
@@ -6,17 +9,9 @@ file(GLOB HEADERS "*.h" "*.rc" "*.def")
 add_executable(${PROJECT_NAME} ${SOURCES} ${HEADERS} ${CLIENT_SRC})
 set_target_properties(${PROJECT_NAME} PROPERTIES FOLDER "common/tests")
 target_link_libraries(${PROJECT_NAME}
-	lib_common
-	lib_net
-	gtest
-	gtest_main
-)
+    lib_log
 
-include(CreateLaunchers)
-create_target_launcher(
-    ${PROJECT_NAME}
-    ARGS "--gtest_filter=* --gtest_break_on_failure"
-    WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}
+	${GTEST_BOTH_LIBRARIES}
+	${GMOCK_BOTH_LIBRARIES}
 )
-
-add_test(${PROJECT_NAME} "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PROJECT_NAME}.exe")
+add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
