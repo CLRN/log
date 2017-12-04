@@ -144,7 +144,7 @@ boost::filesystem::path Log4cplus::GetLogFolder(const char* module) const
             }
         }
     }
-    THROW(cmn::Exception("Unable to get log folder"));
+    BOOST_THROW_EXCEPTION(cmn::Exception("Unable to get log folder"));
 }
 
 void Log4cplus::Write(const char* module, ILog::Level::Value level, const std::string& text, const char* file, unsigned line, const char* function)
